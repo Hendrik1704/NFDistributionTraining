@@ -1,7 +1,7 @@
 # NFDistributionTraining
 
 This repository contains the code for training a normalizing flow (NF) model
-on a dataser containing of an array of many samples (rows) and some features (columns).
+on a dataset containing of an array of many samples (rows) and some features (columns).
 The last column of the dataset contains the log-likelihood of the training distribution for 
 the given parameter.
 
