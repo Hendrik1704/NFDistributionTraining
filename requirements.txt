@@ -1,0 +1,6 @@
+jax==0.6.0
+equinox==0.12.1
+numpy==1.26.0
+optax==0.2.4
+corner==2.2.2
+matplotlib==3.8.4
