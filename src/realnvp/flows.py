@@ -129,3 +129,7 @@ class RealNVPScaleShift(eqx.Module):
         x, ld_ss = self.ss.inv(x)
         x, ld_rnvp = self.rnvp.inv(x)
         return x, ld_rnvp + ld_ss
+    
+    def inv_batch(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Batch version of inverse transformation."""
+        return jax.vmap(self.inv)(x)

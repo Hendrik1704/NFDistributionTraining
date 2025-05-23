@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from .realnvp.utils import load
 
 def visualize(path_normalizing_flow, path_comparison_data, number_samples,
-              plot_filename=None, seed=None, binwidth=0.04):
+              plot_filename=None, seed=None, binwidth=0.04, 
+              unsupervised_training=False):
     """
     Samples from a trained normalizing flow and generates a corner plot to 
     compare to other data.
@@ -32,6 +33,9 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
         will be used.
     binwidth : float, optional
         Width of the bins for the histogram. Defaults to 0.04.
+    unsupervised_training : bool, optional
+        If True, the normalizing flow is trained in an unsupervised 
+        manner. Defaults to False.
     """
     # Specify to use CPU, not GPU.
     jax.config.update('jax_platform_name', 'cpu')
@@ -59,7 +63,10 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
     observations = np.array(observations)
     with open(path_comparison_data, 'rb') as pf:
         data_raw = pickle.load(pf)
-    data_theta = np.array(data_raw[:, :-1])
+    if not unsupervised_training:
+        data_theta = np.array(data_raw[:, :-1])
+    else:
+        data_theta = np.array(data_raw)
     data_length = len(data_theta)
     data_ratio = number_samples / data_length
 
@@ -93,10 +100,8 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
         show_titles=True,
     )
 
-    #width = 8
-    #height = 6
-    width = 20
-    height = 20
+    width = 8
+    height = 6
     figure2.set_size_inches(width, height)
 
     plt.legend(['Training Data', 'Normalizing Flow'], loc='upper right', fontsize=10)

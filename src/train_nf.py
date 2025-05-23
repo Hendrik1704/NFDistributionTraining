@@ -20,7 +20,8 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
           use_KL_divergence_loss=False, initial_normalizing_flow_model_path=None, 
           loss_threshold_early_stopping=0, optimizer=optax.adam,
           print_loss_training=False, metrics_mid_training=False,
-          metrics_mid_training_frequency=1, metrics_path='metrics.dat'):
+          metrics_mid_training_frequency=1, metrics_path='metrics.dat',
+          unsupervised_training=False):
     """
     Train a normalizing flow model using the provided training data and 
     hyperparameters.
@@ -61,6 +62,9 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         Frequency of saving metrics during training (default is 1).
     metrics_path : str, optional
         Path to save the metrics file (default is 'metrics.dat').
+    unsupervised_training : bool, optional
+        If True, use unsupervised training without distribution values / 
+        log-likelihood in last column of training data (default is False).
     """
     # Specify to use CPU, not GPU for the training
     jax.config.update("jax_platform_name", "cpu")
@@ -73,19 +77,26 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         seed = time.time_ns()
     sample_key, initial_key = jax.random.split(jax.random.PRNGKey(seed), 2)
 
-    # Load the training data
+    if unsupervised_training:
+        metrics_mid_training = False
+        print("Unsupervised training: metrics can not be computed, "
+              "set metrics_mid_training to False")
+
     with open(training_data_path, 'rb') as pf:
         training_data_raw = pickle.load(pf)
-    training_data_theta = jnp.array(training_data_raw[:, :-1])
-    training_data_distribution_value = jnp.array(training_data_raw[:, -1])
-    # Number of samples in the training data
-    n_samples = len(training_data_distribution_value)
 
-    # Load the test data
     with open(test_data_path, 'rb') as pf:
         test_data_raw = pickle.load(pf)
-    test_data_theta = jnp.array(test_data_raw[:, :-1])
-    test_data_distribution_value = jnp.array(test_data_raw[:, -1])
+
+    if not unsupervised_training:
+        training_data_theta = jnp.array(training_data_raw[:, :-1])
+        training_data_distribution_value = jnp.array(training_data_raw[:, -1])
+        test_data_theta = jnp.array(test_data_raw[:, :-1])
+        test_data_distribution_value = jnp.array(test_data_raw[:, -1])
+    else:
+        training_data_theta = jnp.array(training_data_raw)
+        test_data_theta = jnp.array(test_data_raw)
+    n_samples = len(training_data_theta)
 
     # Check the input data for NaN or Inf values
     assert not jnp.isnan(training_data_theta).any(), "NaN in training data"
@@ -217,8 +228,31 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         rkl = numerator / (denominator + 1e-8)
         return KL_divergence + rkl
     
+    def NLL_loss_function(flow, x):
+        """
+        Compute the negative log-likelihood loss function.
+
+        Parameters
+        ----------
+        flow : RealNVPScaleShift
+            Normalizing flow model.
+        x : jnp.ndarray
+            Input data.
+
+        Returns
+        -------
+        jnp.ndarray
+            Negative log-likelihood loss.
+        """
+        y, log_det = flow.inv_batch(x)
+        log_prob = -0.5 * jnp.sum(y**2, axis=-1) - 0.5 * x.shape[1] * jnp.log(2 * jnp.pi)
+        return -jnp.mean(log_prob + log_det)
+
+    
     # Compute the loss function and the derivative with respect to the NN parameters
-    if use_KL_divergence_loss:
+    if unsupervised_training:
+        loss_gradient = eqx.filter_value_and_grad(NLL_loss_function)
+    elif use_KL_divergence_loss:
         loss_gradient = eqx.filter_value_and_grad(KL_loss_function)
     else:
         loss_gradient = eqx.filter_value_and_grad(Jeffreys_loss_function)
@@ -232,8 +266,11 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         k, key = jax.random.split(key)
         rand_choice = jax.random.choice(k, n_samples, [batch_size_training,], 
                                         replace=False)
-        loss, gradient = loss_gradient(flow,training_data_theta[rand_choice],
-                                       training_data_distribution_value[rand_choice])
+        if unsupervised_training:
+            loss, gradient = loss_gradient(flow, training_data_theta[rand_choice])
+        else:
+            loss, gradient = loss_gradient(flow, training_data_theta[rand_choice],
+                                   training_data_distribution_value[rand_choice])
         updates, opt_state = opt.update(gradient, opt_state)
         flow = eqx.apply_updates(flow, updates)
         return flow, loss, opt_state, key
@@ -262,8 +299,10 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         while (loss > loss_threshold_early_stopping or test_loss > loss_threshold_early_stopping) and training_step < number_training_steps:
             normalizing_flow_model, loss, opt_state, sample_key = step(
                 normalizing_flow_model, opt_state, key=sample_key)
-            test_loss = Jeffreys_loss_function(
-                normalizing_flow_model, test_data_theta, test_data_distribution_value)
+            if unsupervised_training:
+                test_loss = NLL_loss_function(normalizing_flow_model, test_data_theta)
+            else:
+                test_loss = Jeffreys_loss_function(normalizing_flow_model, test_data_theta, test_data_distribution_value)
             training_step += 1
             if metrics_mid_training and training_step % metrics_mid_training_frequency == 0:
                 mid_training_metrics_df.append(
