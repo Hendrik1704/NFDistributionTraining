@@ -227,7 +227,7 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         denominator = jnp.sum(rw)
         rkl = numerator / (denominator + 1e-8)
         return KL_divergence + rkl
-    
+
     def NLL_loss_function(flow, x):
         """
         Compute the negative log-likelihood loss function.
@@ -244,11 +244,10 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         jnp.ndarray
             Negative log-likelihood loss.
         """
-        y, log_det = flow.inv_batch(x)
+        y, log_det = flow.inv(x)
         log_prob = -0.5 * jnp.sum(y**2, axis=-1) - 0.5 * x.shape[1] * jnp.log(2 * jnp.pi)
         return -jnp.mean(log_prob + log_det)
 
-    
     # Compute the loss function and the derivative with respect to the NN parameters
     if unsupervised_training:
         loss_gradient = eqx.filter_value_and_grad(NLL_loss_function)

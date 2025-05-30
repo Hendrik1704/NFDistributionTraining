@@ -118,18 +118,41 @@ class RealNVPScaleShift(eqx.Module):
         self.ss = ScaleShift(dim, scale, shift)
         self.rnvp = RealNVP(key, dim, depth)
 
-    def __call__(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Apply the transformation and return the output and log determinant."""
+    def _forward(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Single-sample forward pass."""
         x, ld_rnvp = self.rnvp(x)
         x, ld_ss = self.ss(x)
         return x, ld_rnvp + ld_ss
 
-    def inv(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Apply the inverse transformation and return the output and log determinant."""
+    def _inverse(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Single-sample inverse pass."""
         x, ld_ss = self.ss.inv(x)
         x, ld_rnvp = self.rnvp.inv(x)
         return x, ld_rnvp + ld_ss
-    
-    def inv_batch(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """Batch version of inverse transformation."""
-        return jax.vmap(self.inv)(x)
+
+    def __call__(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Vectorized forward pass for input shape (dim,) or (N, dim)."""
+        if x.ndim == 1:
+            return self._forward(x)
+        elif x.ndim == 2:
+            return jax.vmap(self._forward)(x)
+        else:
+            raise ValueError(f"Unsupported input shape: {x.shape}")
+
+    def inv(self, x: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """Vectorized inverse pass for input shape (dim,) or (N, dim)."""
+        if x.ndim == 1:
+            return self._inverse(x)
+        elif x.ndim == 2:
+            return jax.vmap(self._inverse)(x)
+        else:
+            raise ValueError(f"Unsupported input shape: {x.shape}")
+
+    def log_prob(self, x: jnp.ndarray) -> jnp.ndarray:
+        """Compute log probability density under the NF model. Works with (dim,) or (N, dim)."""
+        z, log_det = self.inv(x)
+        if z.ndim == 1:
+            log_pz = -0.5 * jnp.sum(z**2 + jnp.log(2 * jnp.pi))
+        else:
+            log_pz = -0.5 * jnp.sum(z**2 + jnp.log(2 * jnp.pi), axis=1)
+        return log_pz + log_det

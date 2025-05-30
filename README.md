@@ -62,6 +62,13 @@ It will also plot the training versus the NF model samples from the distribution
 The unsupervised learning example uses the same NF model as the supervised learning example,
 but the training is done using a different loss function.
 
+## Custom prior class for pocoMC
+If you want to use the NF model as a prior for pocoMC, you can create a class 
+similar to the one in the `tests/custom_prior_distribution_class/custom_prior.py` 
+file. There is an example of how to use the NF model as a prior similar to the 
+custom implementation in the pocoMC [examples](https://pocomc.readthedocs.io/en/latest/priors.html).
+In this example and test of the implementation the Rosenbrock Banana distribution is used.
+
 ## Requirements
 A `requirements.txt` file is provided to install the required packages.
 This is just a list of packages with which the code has been tested.
