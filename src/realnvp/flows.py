@@ -150,7 +150,7 @@ class RealNVPScaleShift(eqx.Module):
 
     def log_prob(self, x: jnp.ndarray) -> jnp.ndarray:
         """Compute log probability density under the NF model. Works with (dim,) or (N, dim)."""
-        z, log_det = self(x)
+        z, log_det = self.inv(x)
         if z.ndim == 1:
             log_pz = -0.5 * jnp.sum(z**2 + jnp.log(2 * jnp.pi))
         else:
