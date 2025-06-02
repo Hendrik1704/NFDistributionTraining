@@ -113,8 +113,8 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
         normalizing_flow_model = RealNVPScaleShift(initial_key, 
                                                    dimension, 
                                                    layers,
-                                                   mean_training_data,
-                                                   std_training_data)
+                                                   std_training_data,
+                                                   mean_training_data)
         if print_loss_training:
             print("Training a new normalizing flow model")
     elif os.path.isfile(initial_normalizing_flow_model_path):
