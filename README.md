@@ -69,6 +69,9 @@ file. There is an example of how to use the NF model as a prior similar to the
 custom implementation in the pocoMC [examples](https://pocomc.readthedocs.io/en/latest/priors.html).
 In this example and test of the implementation the Rosenbrock Banana distribution is used.
 
+## Further examples and tests
+Other examples and tests are provided in the `tests` directory (see `README.md`).
+
 ## Requirements
 A `requirements.txt` file is provided to install the required packages.
 This is just a list of packages with which the code has been tested.

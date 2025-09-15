@@ -120,7 +120,7 @@ def train(training_data_path, dimension, normalizing_flow_model_path,
     elif os.path.isfile(initial_normalizing_flow_model_path):
         normalizing_flow_model, hyperparameters = load(
             initial_normalizing_flow_model_path, initial_key)
-        loaded_dimension = hyperparameters["dim"]
+        loaded_dimension = hyperparameters["dimension"]
         print("Loaded normalizing flow model with dimension:", loaded_dimension)
         if loaded_dimension != dimension or loaded_dimension != dimension_training_data:
             raise ValueError(
