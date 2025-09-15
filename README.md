@@ -8,8 +8,7 @@ In the case where the log-likelihood is not available, the code can be adapted t
 use another loss function to train the NF model (unsupervised learning).
 
 The NF code and model is adapted from [arXiv:2310.04635](https://arxiv.org/pdf/2310.04635) 
-and the code is a rewritten version from this [GitLab](https://gitlab.com/yyamauchi/rbm_nf/-/tree/main) repository.
-
+and the code is a rewritten and extended version from this [GitLab](https://gitlab.com/yyamauchi/rbm_nf/-/tree/main) repository.
 
 ## Example Usage
 
