@@ -58,6 +58,23 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
         x = jax.random.normal(key, (number_samples, dimension))
         y = map_function(x)
         return y
+    
+    def safe_bins(X, binwidth=0.1, min_bins=10):
+        bins = []
+        for i in range(X.shape[1]):
+            vmin = np.min(X[:, i])
+            vmax = np.max(X[:, i])
+            delta = vmax - vmin
+            n_bins = int(delta / binwidth)
+            if n_bins < min_bins:
+                print(f"⚠️  Dimension {i}: small Δ={delta:.3e}, forcing {min_bins} bins")
+                n_bins = min_bins
+            bins.append(n_bins)
+        # If the number of bins is too large, reduce it
+        if any(b > 100 for b in bins):
+            print(f"⚠️  Too many bins: {bins}, reducing to 100")
+            bins = [min(b, 100) for b in bins]
+        return bins
 
     observations = sample(sample_key)
     observations = np.array(observations)
@@ -70,12 +87,15 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
     data_length = len(data_theta)
     data_ratio = number_samples / data_length
 
+    bins_data = safe_bins(data_theta, binwidth=binwidth)
+    bins_observations = safe_bins(observations, binwidth=binwidth)
+
     figure1 = corner.corner(
         data_theta,
         weights=np.ones(len(data_theta)) * data_ratio,
         labels=[f'$x_{i}$' for i in range(dimension)],
         labelpad=0.2,
-        bins=[int((max(data_theta[:, i]) - min(data_theta[:, i])) // binwidth) for i in range(dimension)],
+        bins=bins_data,
         color='black',
         label_kwargs={'fontsize': 20},
         hist_kwargs={"linewidth": 2},
@@ -88,7 +108,7 @@ def visualize(path_normalizing_flow, path_comparison_data, number_samples,
     figure2 = corner.corner(
         observations,
         fig=figure1,
-        bins=[int((max(observations[:, i]) - min(observations[:, i])) / binwidth) for i in range(dimension)],
+        bins=bins_observations,
         color='green',
         labels=[f'$x_{i}$' for i in range(dimension)],
         labelpad=0.2,
